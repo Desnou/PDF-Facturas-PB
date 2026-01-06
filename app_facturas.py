@@ -302,9 +302,9 @@ class NativeInvoiceApp(TkinterDnD.Tk):
             messagebox.showerror("Error", "No se pudieron leer datos de los PDFs.")
             return
 
-        # Tomamos los datos del emisor del primer PDF cargado para el encabezado
+        # Tomamos los datos del deudor del primer PDF cargado para el encabezado
         header_data = self.parsed_data[0]
-        emisor_full = f"{header_data['emisor_nombre']} {header_data['emisor_rut']}".upper()
+        deudor_full = f"{header_data['deudor_nombre']} {header_data['deudor_rut']}".upper()
 
         # --- FORMATO DE CORREO HTML PARA GMAIL ---
         # Genera HTML inline completo listo para copiar/pegar en Gmail
@@ -327,10 +327,12 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         email_body = f"""<div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6;">
     <p>Estimado:</p>
     
-    <p>Junto con saludar, agradeceré a usted que pueda confirmar por este medio, la recepción y conformidad de las siguientes facturas electrónicas adjuntas, emitida por nuestro cliente <strong>{emisor_full}</strong>, las cuales están siendo cedidas a nuestro Factoring Punto Base Financiero Spa.</p>
+    <p>Junto con saludar, agradeceré a<br>
+    <strong>{deudor_full}</strong><br>
+    usted que pueda confirmar por este medio, la recepción y conformidad de las siguientes facturas electrónicas adjuntas, emitida por nuestro(s) cliente(s), las cuales están siendo cedidas a nuestro Factoring Punto Base Financiero Spa.</p>
     
     <div style="background-color: #d9d9d9; padding: 10px; margin: 15px 0; font-weight: bold;">
-        {emisor_full}
+        {deudor_full}
     </div>
     
     <table style="border-collapse: collapse; width: 100%; margin: 15px 0;">
@@ -434,12 +436,12 @@ class NativeInvoiceApp(TkinterDnD.Tk):
             return ""
 
         header_data = self.parsed_data[0]
-        emisor_full = f"{header_data['emisor_nombre']} {header_data['emisor_rut']}".upper()
+        deudor_full = f"{header_data['deudor_nombre']} {header_data['deudor_rut']}".upper()
 
         text = "Estimado:\n\n"
-        text += f"Junto con saludar, agradeceré a usted que pueda confirmar por este medio, la recepción y conformidad de las siguientes facturas electrónicas adjuntas, emitida por nuestro cliente {emisor_full}, las cuales están siendo cedidas a nuestro Factoring Punto Base Financiero Spa.\n\n"
+        text += f"Junto con saludar, agradeceré a\n{deudor_full}\nusted que pueda confirmar por este medio, la recepción y conformidad de las siguientes facturas electrónicas adjuntas, emitida por nuestro(s) cliente(s), las cuales están siendo cedidas a nuestro Factoring Punto Base Financiero Spa.\n\n"
         text += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        text += f"  {emisor_full}\n"
+        text += f"  {deudor_full}\n"
         text += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         text += "{:<20} | {:<15} | {:<30} | {:^10} | {:<15} | {:<30} | {:>18}\n".format(
             'Fecha Emisión', 'Rut Emisor', 'Nombre Emisor', 'N° Factura', 'Rut Deudor', 'Nombre Deudor', 'Valor Bruto Factura'
