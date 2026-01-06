@@ -92,8 +92,9 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         self.drop_zone.dnd_bind('<<DragLeave>>', self.on_drag_leave)
         self.drop_zone.bind("<Button-1>", self.open_file_dialog)
 
-        lbl_files = tk.Label(main_frame, text="Documentos en cola:", font=("Segoe UI", 11, "bold"), bg="#f0f0f0", anchor="w")
-        lbl_files.pack(fill=tk.X, pady=(10, 5))
+        # Label con contador de documentos
+        self.lbl_files = tk.Label(main_frame, text="Documentos en cola: 0", font=("Segoe UI", 11, "bold"), bg="#f0f0f0", anchor="w")
+        self.lbl_files.pack(fill=tk.X, pady=(10, 5))
 
         self.files_container = ScrollableFrame(main_frame)
         self.files_container.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -120,13 +121,14 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         self.text_area.insert(tk.END, "Cargue archivos PDF y genere el correo...")
         self.text_area.config(state=tk.DISABLED)
 
-    # --- LOGICA VISUAL (Sin cambios) ---
+    # --- LOGICA VISUAL ---
     def add_file_card(self, file_path):
         if file_path in self.file_widgets: return
         filename = os.path.basename(file_path)
         index = len(self.pdf_files)
-        row = index // 4
-        col = index % 4
+        # Usar 10 columnas para mejor aprovechamiento del espacio horizontal
+        row = index // 10
+        col = index % 10
         card = tk.Frame(
             self.files_container.scrollable_frame, 
             relief="raised", borderwidth=1, bg="white",
@@ -146,6 +148,7 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         tk.Label(card, text=display_name, font=("Segoe UI", 9), bg="white", wraplength=130).pack()
         self.pdf_files.append(file_path)
         self.file_widgets[file_path] = card
+        self._update_file_count()
 
     def remove_file(self, file_path):
         if file_path in self.file_widgets:
@@ -154,6 +157,7 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         if file_path in self.pdf_files:
             self.pdf_files.remove(file_path)
         self.refresh_grid()
+        self._update_file_count()
 
     def refresh_grid(self):
         current_files = list(self.pdf_files)
@@ -196,6 +200,12 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         self.text_area.insert(tk.END, "Cargue archivos PDF y genere el correo...")
         self.text_area.config(state=tk.DISABLED)
         self.current_html = ""
+        self._update_file_count()
+
+    def _update_file_count(self):
+        """Actualiza el label con el número de documentos en cola"""
+        count = len(self.pdf_files)
+        self.lbl_files.config(text=f"Documentos en cola: {count}")
 
     # --- EXTRACCION PDF (Con pequeñas mejoras) ---
     def extract_pdf_data(self, pdf_path):
