@@ -207,71 +207,66 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         count = len(self.pdf_files)
         self.lbl_files.config(text=f"Documentos en cola: {count}")
 
-    # --- EXTRACCION PDF (Con pequeñas mejoras) ---
+    # --- EXTRACCION PDF (Mejorado con múltiples estrategias) ---
     def extract_pdf_data(self, pdf_path):
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 page = pdf.pages[0]
                 text = page.extract_text()
                 
-                if not text: raise ValueError("No text found")
+                # Si no hay texto, intentar OCR o informar error útil
+                if not text or len(text.strip()) < 50:
+                    filename = os.path.basename(pdf_path)
+                    print(f"⚠️  PDF '{filename}' no contiene texto extraíble (puede ser imagen escaneada)")
+                    return {
+                        "emisor_nombre": f"[PDF sin texto: {filename}]",
+                        "emisor_rut": "S/I",
+                        "deudor_nombre": "S/I",
+                        "deudor_rut": "S/I",
+                        "folio": "S/I",
+                        "monto": "0",
+                        "fecha_emision": "S/I",
+                        "valor_bruto": "0",
+                    }
 
-                def safe_search(pattern, text, default="S/I"):
-                    match = re.search(pattern, text, re.IGNORECASE)
-                    return match.group(1).strip() if match else default
+                # Funciones auxiliares
+                def safe_search(patterns, text, default="S/I"):
+                    """Intenta múltiples patrones hasta encontrar match"""
+                    if not isinstance(patterns, list):
+                        patterns = [patterns]
+                    for pattern in patterns:
+                        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+                        if match:
+                            result = match.group(1).strip() if match.lastindex >= 1 else match.group(0).strip()
+                            # Limpiar saltos de línea múltiples
+                            result = re.sub(r'\s+', ' ', result)
+                            return result
+                    return default
 
-                # Normalizar espacios en RUTs
                 def norm_rut(r):
-                    return r.replace(" ", "")
-
-                # Buscamos todos los RUTs presentes en el texto y aplicamos heurísticas
-                rut_pattern = r"(\d{1,3}(?:\.\d{3})*-\s*[\dkK])"
-                all_ruts = re.findall(rut_pattern, text, re.IGNORECASE)
-                all_ruts = [norm_rut(r) for r in all_ruts]
-
-                # heurística: emisor = primer RUT, deudor = RUT localizado cerca de 'SEÑOR(ES)'
-                emisor_rut = all_ruts[0] if len(all_ruts) >= 1 else "S/I"
-                deudor_rut = "S/I"
-                if len(all_ruts) >= 2:
-                    # intentamos seleccionar el RUT que aparece después de la etiqueta SEÑOR(ES)
-                    señor_idx = text.upper().find('SEÑOR')
-                    if señor_idx != -1:
-                        # buscar primer match cuyo índice sea mayor que señor_idx
-                        for m in re.finditer(rut_pattern, text, re.IGNORECASE):
-                            if m.start() > señor_idx:
-                                deudor_rut = norm_rut(m.group(1))
-                                break
-                        if deudor_rut == "S/I":
-                            deudor_rut = all_ruts[1]
-                    else:
-                        deudor_rut = all_ruts[1]
-
-                data = {
-                    "emisor_nombre": safe_search(r"(.+?)\s*\n.*Giro:", text, default="EMISOR DESCONOCIDO"),
-                    "emisor_rut": emisor_rut,
-                    "deudor_nombre": safe_search(r"SEÑOR\(ES\):\s*(.+)", text, default="S/I"),
-                    "deudor_rut": deudor_rut,
-                    "folio": safe_search(r"Nº\s*(\d+)", text, default="0"),
-                    "monto": safe_search(r"TOTAL[\s\$]*:?\s*([\d\.]+)", text, default="0"),
-                    # Fecha de emisión (soporta 'Fecha Emision' o 'Fecha Emisión')
-                        "fecha_emision": None,
-                    # Valor bruto usar el mismo que 'monto' por solicitud
-                    "valor_bruto": safe_search(r"TOTAL[\s\$]*:?\s*([\d\.]+)", text, default="0"),
-                }
-                # Formatear fecha_emision a DD/MM/YYYY si se puede
-                raw_fecha = safe_search(r"Fecha\s+Emisi[oó]n[:\s]*([^\n]+)", text, default="S/I")
+                    """Normalizar espacios en RUTs"""
+                    return re.sub(r'\s+', '', r)
 
                 def format_fecha(raw):
+                    """Convertir fecha a DD/MM/YYYY"""
                     raw = raw.strip()
-                    if raw == "S/I":
-                        return raw
-                    # dd/mm/yyyy or dd-mm-yyyy
+                    if raw == "S/I" or not raw:
+                        return "S/I"
+                    
+                    # Formato YYYY-MM-DD (ISO)
+                    m = re.search(r'(\d{4})-(\d{1,2})-(\d{1,2})', raw)
+                    if m:
+                        y, mo, d = m.groups()
+                        return f"{int(d):02d}/{int(mo):02d}/{int(y):04d}"
+                    
+                    # Formato DD/MM/YYYY or DD-MM-YYYY
                     m = re.search(r"(\d{1,2})\s*[/-]\s*(\d{1,2})\s*[/-]\s*(\d{2,4})", raw)
                     if m:
                         d, mo, y = m.groups()
                         y = y if len(y) == 4 else ("20" + y)
                         return f"{int(d):02d}/{int(mo):02d}/{int(y):04d}"
-                    # textual spanish: '24 de Diciembre del 2025' or '24 de diciembre de 2025'
+                    
+                    # Textual español: '24 de Diciembre del 2025'
                     m2 = re.search(r"(\d{1,2})\s+de\s+([A-Za-záéíóúÁÉÍÓÚñÑ]+)\s+(?:del|de)\s+(\d{4})", raw, re.IGNORECASE)
                     if m2:
                         d, month_name, y = m2.groups()
@@ -282,14 +277,101 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                         mnum = months.get(month_name.lower())
                         if mnum:
                             return f"{int(d):02d}/{mnum:02d}/{int(y):04d}"
-                    # fallback: return original trimmed
+                    
                     return raw
 
+                # Extraer todos los RUTs del documento
+                rut_pattern = r"(?:R\.U\.T\.?:?\s*)?(\d{1,3}(?:\.\d{3}){1,2}-\s*[\dkK])"
+                all_ruts = re.findall(rut_pattern, text, re.IGNORECASE)
+                all_ruts = [norm_rut(r) for r in all_ruts if r]
+
+                # ESTRATEGIA 1: Detectar emisor RUT (primero en el documento)
+                emisor_rut = all_ruts[0] if all_ruts else "S/I"
+                
+                # ESTRATEGIA 2: Detectar deudor RUT (después de SEÑOR(ES) o segundo RUT)
+                deudor_rut = "S/I"
+                if len(all_ruts) >= 2:
+                    señor_idx = text.upper().find('SEÑOR')
+                    if señor_idx != -1:
+                        for m in re.finditer(rut_pattern, text, re.IGNORECASE):
+                            if m.start() > señor_idx:
+                                deudor_rut = norm_rut(m.group(1))
+                                break
+                    if deudor_rut == "S/I":
+                        deudor_rut = all_ruts[1]
+
+                # Normalizar números: convertir comas a puntos para unificar formato
+                def normalize_amount(amt_str):
+                    """Convierte '32,567,147' o '32.567.147' a '32.567.147'"""
+                    # Si tiene comas, asumir que son separadores de miles (formato anglosajón)
+                    if ',' in amt_str:
+                        return amt_str.replace(',', '.')
+                    return amt_str
+
+                # Extracción de campos con múltiples estrategias
+                data = {
+                    # Emisor nombre: múltiples patrones
+                    "emisor_nombre": safe_search([
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?SPA)\s*\n",  # Buscar línea 1 que termine en SPA
+                        r"(?:FACTURA\s+ELECTR[OÓ]NICA\s*\n.*?\n)([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?)\s*\n",  # Después de FACTURA ELECTRONICA
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?)\s*\n.*?Giro:",  # Línea antes de Giro:
+                    ], text, default="EMISOR DESCONOCIDO"),
+                    
+                    "emisor_rut": emisor_rut,
+                    
+                    # Deudor nombre: múltiples patrones
+                    "deudor_nombre": safe_search([
+                        r"Señor\(es\):[^\n]*\n([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?SOCIEDAD\s+ANONIMA)",  # Formato Factura1550: nombre en línea siguiente
+                        r"Señor\(es\)([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:Direcci[oó]n|RUT\s|R\.U\.T\.?:|\n.*?RUT\s)",  # Sin espacio después de ()
+                        r"SEÑOR\(ES\)[:\s]*([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:\s+R\.U\.T\.?:|Direcci[oó]n:|\n.*?R\.U\.T\.?:)",
+                        r"Señor\(es\)[:\s]+([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:\s+Giro\s*:|R\.U\.T\.?:|Direcci[oó]n:|\n.*?Giro\s*:)",
+                    ], text, default="S/I"),
+                    
+                    "deudor_rut": deudor_rut,
+                    
+                    # Folio: múltiples formatos
+                    "folio": safe_search([
+                        r"(?:FACTURA\s+ELECTR[OÓ]NICA|ELECTRONICA)\s*\n\s*N[°º]?\s*(\d+)",  # Folio en línea separada
+                        r"(?:N[°º]|Nº)\s*(\d+)",
+                        r"Folio[:\s]*(\d+)",
+                    ], text, default="0"),
+                    
+                    # Monto total: múltiples variantes (soporta comas y puntos)
+                    "monto": None,  # Lo calculamos después
+                    
+                    # Fecha emisión
+                    "fecha_emision": None,
+                    
+                    # Valor bruto (mismo que monto)
+                    "valor_bruto": None,  # Lo calculamos después
+                }
+                
+                # Extraer monto con soporte para comas y puntos
+                raw_monto = safe_search([
+                    r"Total\s+Final[\s\$]*:?\s*\$?\s*([\d\.,]+)",
+                    r"TOTAL\s+FINAL[\s\$]*:?\s*\$?\s*([\d\.,]+)",
+                    r"TOTAL[\s\$]*:?\s*\$?\s*([\d\.,]+)",
+                    r"Total[\s\$]*:?\s*\$?\s*([\d\.,]+)",
+                ], text, default="0")
+                data['monto'] = normalize_amount(raw_monto)
+                data['valor_bruto'] = data['monto']
+                
+                # Formatear fecha de emisión
+                raw_fecha = safe_search([
+                    r"Fecha\s+(?:de\s+)?Emisi[oó]n[:\s]*([^\n]+)",
+                    r"Fecha:[^\n]*\n(\d{1,2}/\d{1,2}/\d{4})",  # Fecha en línea siguiente (Factura1550)
+                    r"Fecha[:\s]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})",  # Fecha en misma línea
+                    r"Fecha[:\s]*(\d{4}-\d{1,2}-\d{1,2})",
+                ], text, default="S/I")
+                
                 data['fecha_emision'] = format_fecha(raw_fecha)
+                
                 return data
 
         except Exception as e:
-            print(f"Error parsing {os.path.basename(pdf_path)}: {e}")
+            print(f"❌ Error parsing {os.path.basename(pdf_path)}: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     # --- GENERACION DEL CORREO (CAMBIO PRINCIPAL AQUÍ) ---
