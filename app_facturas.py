@@ -8,6 +8,8 @@ import os
 import platform
 import struct
 import win32clipboard
+import webbrowser
+import tempfile
 
 # --- Clase ScrollableFrame (Sin cambios) ---
 class ScrollableFrame(tk.Frame):
@@ -150,15 +152,19 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         secondary_frame.grid_columnconfigure(0, weight=1)
         secondary_frame.grid_columnconfigure(1, weight=1)
         secondary_frame.grid_columnconfigure(2, weight=1)
+        secondary_frame.grid_columnconfigure(3, weight=1)
+
+        self.btn_preview = ttk.Button(secondary_frame, text="👁️ Vista HTML", command=self.preview_html_in_browser)
+        self.btn_preview.grid(row=0, column=0, sticky="nsew", padx=(0, 3))
 
         self.btn_copy = ttk.Button(secondary_frame, text="Copiar Texto", command=self.copy_to_clipboard)
-        self.btn_copy.grid(row=0, column=0, sticky="nsew", padx=(0, 3))
+        self.btn_copy.grid(row=0, column=1, sticky="nsew", padx=(3, 3))
 
         self.btn_copy_pdfs = ttk.Button(secondary_frame, text="Copiar PDFs", command=self.copy_pdfs_to_clipboard)
-        self.btn_copy_pdfs.grid(row=0, column=1, sticky="nsew", padx=(3, 3))
+        self.btn_copy_pdfs.grid(row=0, column=2, sticky="nsew", padx=(3, 3))
 
         self.btn_clear = ttk.Button(secondary_frame, text="Limpiar Todo", command=self.clear_all)
-        self.btn_clear.grid(row=0, column=2, sticky="nsew", padx=(3, 0))
+        self.btn_clear.grid(row=0, column=3, sticky="nsew", padx=(3, 0))
 
         # Vincular evento de redimensionamiento
         self.bind("<Configure>", self._on_window_resize)
@@ -174,16 +180,19 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         # Ajustar texto de botones según ancho disponible
         if width < 550:
             self.btn_generate.config(text="GENERAR", font=("Segoe UI", 10, "bold"))
+            self.btn_preview.config(text="👁️")
             self.btn_copy.config(text="Texto")
             self.btn_copy_pdfs.config(text="PDFs")
             self.btn_clear.config(text="Limpiar")
         elif width < 750:
             self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 10, "bold"))
+            self.btn_preview.config(text="👁️ HTML")
             self.btn_copy.config(text="Copiar")
             self.btn_copy_pdfs.config(text="PDFs")
             self.btn_clear.config(text="Limpiar")
         else:
             self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 11, "bold"))
+            self.btn_preview.config(text="👁️ Vista HTML")
             self.btn_copy.config(text="Copiar Texto")
             self.btn_copy_pdfs.config(text="Copiar PDFs")
             self.btn_clear.config(text="Limpiar Todo")
@@ -643,6 +652,53 @@ class NativeInvoiceApp(TkinterDnD.Tk):
             
         except Exception as e:
             messagebox.showerror("Error", f"No se pudieron copiar los archivos:\n{str(e)}")
+
+    def preview_html_in_browser(self):
+        """Abre el HTML generado en el navegador por defecto para vista previa renderizada"""
+        html = getattr(self, 'current_html', '')
+        if len(html) < 5:
+            messagebox.showwarning("Aviso", "No hay contenido para previsualizar. Genera el correo primero.")
+            return
+        
+        try:
+            # Crear archivo temporal HTML
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                # Escribir HTML completo con estilos
+                full_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vista Previa - Correo de Facturas</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }}
+        .email-container {{
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        {html}
+    </div>
+</body>
+</html>"""
+                f.write(full_html)
+                temp_path = f.name
+            
+            # Abrir en navegador por defecto
+            webbrowser.open('file://' + temp_path)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir la vista previa:\n{str(e)}")
 
     def _html_to_preview_text(self):
         """Convierte el contenido a texto legible para la vista previa"""
