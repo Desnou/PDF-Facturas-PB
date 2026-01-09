@@ -6,6 +6,7 @@ import pdfplumber
 import re
 import os
 import platform
+import struct
 import win32clipboard
 
 # --- Clase ScrollableFrame (Sin cambios) ---
@@ -148,12 +149,16 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         secondary_frame.grid(row=1, column=0, sticky="nsew")
         secondary_frame.grid_columnconfigure(0, weight=1)
         secondary_frame.grid_columnconfigure(1, weight=1)
+        secondary_frame.grid_columnconfigure(2, weight=1)
 
         self.btn_copy = ttk.Button(secondary_frame, text="Copiar Texto", command=self.copy_to_clipboard)
         self.btn_copy.grid(row=0, column=0, sticky="nsew", padx=(0, 3))
 
+        self.btn_copy_pdfs = ttk.Button(secondary_frame, text="Copiar PDFs", command=self.copy_pdfs_to_clipboard)
+        self.btn_copy_pdfs.grid(row=0, column=1, sticky="nsew", padx=(3, 3))
+
         self.btn_clear = ttk.Button(secondary_frame, text="Limpiar Todo", command=self.clear_all)
-        self.btn_clear.grid(row=0, column=1, sticky="nsew", padx=(3, 0))
+        self.btn_clear.grid(row=0, column=2, sticky="nsew", padx=(3, 0))
 
         # Vincular evento de redimensionamiento
         self.bind("<Configure>", self._on_window_resize)
@@ -169,15 +174,18 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         # Ajustar texto de botones según ancho disponible
         if width < 550:
             self.btn_generate.config(text="GENERAR", font=("Segoe UI", 10, "bold"))
-            self.btn_copy.config(text="Copiar")
+            self.btn_copy.config(text="Texto")
+            self.btn_copy_pdfs.config(text="PDFs")
             self.btn_clear.config(text="Limpiar")
         elif width < 750:
             self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 10, "bold"))
             self.btn_copy.config(text="Copiar")
+            self.btn_copy_pdfs.config(text="PDFs")
             self.btn_clear.config(text="Limpiar")
         else:
             self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 11, "bold"))
             self.btn_copy.config(text="Copiar Texto")
+            self.btn_copy_pdfs.config(text="Copiar PDFs")
             self.btn_clear.config(text="Limpiar Todo")
         
         # Ajustar número de columnas del grid de archivos
@@ -603,6 +611,38 @@ class NativeInvoiceApp(TkinterDnD.Tk):
             end_frag=end_frag,
             fragment=fragment
         )
+
+    def copy_pdfs_to_clipboard(self):
+        """Copia los archivos PDF cargados al portapapeles de Windows (para pegar en Gmail)"""
+        if not self.pdf_files:
+            messagebox.showwarning("Aviso", "No hay archivos PDF cargados.")
+            return
+        
+        try:
+            # Formato CF_HDROP para copiar archivos al portapapeles
+            # Estructura DROPFILES: https://docs.microsoft.com/en-us/windows/win32/api/shlobj_core/ns-shlobj_core-dropfiles
+            
+            # Crear lista de archivos con rutas absolutas terminadas en null
+            files_str = "\0".join(os.path.abspath(f) for f in self.pdf_files) + "\0\0"
+            files_bytes = files_str.encode('utf-16-le')
+            
+            # Estructura DROPFILES (20 bytes header + files)
+            # pFiles: offset donde empiezan los archivos (20 bytes)
+            # pt.x, pt.y: coordenadas (0, 0)
+            # fNC: non-client area flag (False)
+            # fWide: Unicode flag (True para UTF-16)
+            dropfiles = struct.pack('IIIIi', 20, 0, 0, 0, 1) + files_bytes
+            
+            win32clipboard.OpenClipboard()
+            win32clipboard.EmptyClipboard()
+            win32clipboard.SetClipboardData(win32clipboard.CF_HDROP, dropfiles)
+            win32clipboard.CloseClipboard()
+            
+            count = len(self.pdf_files)
+            messagebox.showinfo("¡Listo!", f"{count} archivo(s) PDF copiado(s) al portapapeles.\n\nAhora puedes pegarlos (Ctrl+V) en Gmail como adjuntos.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudieron copiar los archivos:\n{str(e)}")
 
     def _html_to_preview_text(self):
         """Convierte el contenido a texto legible para la vista previa"""
