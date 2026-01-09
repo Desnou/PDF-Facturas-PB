@@ -488,44 +488,44 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         rows_html = ""
         for item in self.parsed_data:
             rows_html += f"""    <tr>
-        <td style="border: 1px solid #000000; padding: 6px;">{item.get('fecha_emision','S/I')}</td>
-        <td style="border: 1px solid #000000; padding: 6px;">{item.get('emisor_rut','S/I')}</td>
-        <td style="border: 1px solid #000000; padding: 6px;">{item.get('emisor_nombre','S/I')}</td>
-        <td style="border: 1px solid #000000; padding: 6px; text-align: center;">{item.get('folio','')}</td>
-        <td style="border: 1px solid #000000; padding: 6px;">{item.get('deudor_rut','S/I')}</td>
-        <td style="border: 1px solid #000000; padding: 6px;">{item.get('deudor_nombre','S/I')}</td>
-        <td style="border: 1px solid #000000; padding: 6px; text-align: right;">{item.get('valor_bruto', item.get('monto','0'))}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('fecha_emision','S/I')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('emisor_rut','S/I')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('emisor_nombre','S/I')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: center;">{item.get('folio','')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('deudor_rut','S/I')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('deudor_nombre','S/I')}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: right;">{item.get('valor_bruto', item.get('monto','0'))}</td>
     </tr>
 """
         
-        email_body = f"""<div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.6;">
+        email_body = f"""<div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5;">
     <p>Estimado:</p>
     
     <p>Junto con saludar, agradeceré a<br>
     <strong>{deudor_full}</strong><br>
     usted que pueda confirmar por este medio, la recepción y conformidad de las siguientes facturas electrónicas adjuntas, emitida por nuestro(s) cliente(s), las cuales están siendo cedidas a nuestro Factoring Punto Base Financiero Spa.</p>
     
-    <div style="background-color: #d9d9d9; padding: 10px; margin: 15px 0; font-weight: bold;">
+    <div style="background-color: #e8e8e8; padding: 8px 12px; margin: 12px 0; font-weight: bold; font-size: 11pt;">
         {deudor_full}
     </div>
     
-    <table style="border-collapse: collapse; width: 100%; margin: 15px 0;">
+    <table style="border-collapse: collapse; margin: 12px 0;">
         <thead>
-            <tr style="background-color: #f2f2f2;">
-                <th style="border: 1px solid #000000; padding: 6px; text-align: left;">Fecha Emisión</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: left;">Rut Emisor</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: left;">Nombre Emisor</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: center;">N° Factura</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: left;">Rut Deudor</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: left;">Nombre Deudor</th>
-                <th style="border: 1px solid #000000; padding: 6px; text-align: right;">Valor Bruto Factura</th>
+            <tr style="background-color: #4a6fa5;">
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Fecha Emisión</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Rut Emisor</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Nombre Emisor</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: center; color: #ffffff; font-size: 10pt; font-weight: 600;">N° Factura</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Rut Deudor</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Nombre Deudor</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: right; color: #ffffff; font-size: 10pt; font-weight: 600;">Valor Bruto</th>
             </tr>
         </thead>
         <tbody>
 {rows_html}        </tbody>
     </table>
     
-    <p>Favor ayudarnos con la siguiente información:<br>
+    <p style="font-size: 10pt;">Favor ayudarnos con la siguiente información:<br>
     -Si mercaderías y/o productos se encuentran recibidos conformes sin observaciones?<br>
     -Si las facturas se encuentran recibidas?<br>
     -Existen notas de crédito o algún otro descuento que afecte el pago de estos documentos?<br>
