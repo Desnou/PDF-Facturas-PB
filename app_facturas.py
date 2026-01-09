@@ -61,7 +61,7 @@ class NativeInvoiceApp(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.title("Procesador de Facturas - PuntoBase")
-        self.geometry("1100x850")
+        self.geometry("900x650")
         self.minsize(500, 400)  # Tamaño mínimo para garantizar usabilidad
         
         self.pdf_files = [] 
