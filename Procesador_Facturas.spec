@@ -62,6 +62,10 @@ a = Analysis(
         'tkinter.messagebox',
         'tkinter.scrolledtext',
         
+        # Stdlib para vista previa HTML
+        'webbrowser',
+        'tempfile',
+        
         # Otros
         'queue',
         'html.parser',
