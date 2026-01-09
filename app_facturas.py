@@ -61,30 +61,39 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         super().__init__()
         self.title("Procesador de Facturas - PuntoBase")
         self.geometry("1100x850")
+        self.minsize(500, 400)  # Tamaño mínimo para garantizar usabilidad
         
         self.pdf_files = [] 
         self.parsed_data = []
         self.file_widgets = {}
-        self.current_html = ""  # Para guardar el HTML generado 
+        self.current_html = ""  # Para guardar el HTML generado
+        self.grid_columns = 5   # Columnas para tarjetas de archivos
 
-        # --- GUI SETUP (Sin cambios mayores) ---
-        main_frame = tk.Frame(self, padx=20, pady=20, bg="#f0f0f0")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # --- GUI SETUP con GRID para control total del espacio ---
+        # Configurar grid principal: 3 filas (header, content, footer)
+        self.grid_rowconfigure(0, weight=0)              # Header: tamaño fijo
+        self.grid_rowconfigure(1, weight=1, minsize=150) # Content: expandible
+        self.grid_rowconfigure(2, weight=0, minsize=90)  # Footer: GARANTIZADO
+        self.grid_columnconfigure(0, weight=1)
 
-        lbl_instruction = tk.Label(
-            main_frame, 
+        # === HEADER (row=0): Instrucciones y zona de drop ===
+        header_frame = tk.Frame(self, bg="#f0f0f0", padx=15, pady=10)
+        header_frame.grid(row=0, column=0, sticky="nsew")
+
+        self.lbl_instruction = tk.Label(
+            header_frame, 
             text="Arrastra tus Facturas (PDF) aquí", 
             font=("Segoe UI", 16, "bold"), bg="#f0f0f0"
         )
-        lbl_instruction.pack(pady=(0, 10))
+        self.lbl_instruction.pack(pady=(0, 8))
 
         self.drop_zone = tk.Label(
-            main_frame,
+            header_frame,
             text="⬇️\nSuéltalos aquí\n(o haz clic para seleccionar)",
-            relief="groove", borderwidth=3, width=50, height=5,
-            fg="#555", bg="#ffffff", font=("Segoe UI", 12)
+            relief="groove", borderwidth=3, width=50, height=4,
+            fg="#555", bg="#ffffff", font=("Segoe UI", 11)
         )
-        self.drop_zone.pack(fill=tk.X, pady=10)
+        self.drop_zone.pack(fill=tk.X)
         
         self.drop_zone.drop_target_register(DND_FILES)
         self.drop_zone.dnd_bind('<<Drop>>', self.drop_files)
@@ -93,49 +102,119 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         self.drop_zone.bind("<Button-1>", self.open_file_dialog)
 
         # Label con contador de documentos
-        self.lbl_files = tk.Label(main_frame, text="Documentos en cola: 0", font=("Segoe UI", 11, "bold"), bg="#f0f0f0", anchor="w")
-        self.lbl_files.pack(fill=tk.X, pady=(10, 5))
+        self.lbl_files = tk.Label(header_frame, text="Documentos en cola: 0", 
+                                  font=("Segoe UI", 10, "bold"), bg="#f0f0f0", anchor="w")
+        self.lbl_files.pack(fill=tk.X, pady=(8, 0))
 
-        self.files_container = ScrollableFrame(main_frame)
-        self.files_container.pack(fill=tk.BOTH, expand=True, pady=5)
+        # === CONTENT (row=1): Archivos y vista previa ===
+        content_frame = tk.Frame(self, bg="#f0f0f0", padx=15)
+        content_frame.grid(row=1, column=0, sticky="nsew")
         
-        btn_frame = tk.Frame(main_frame, bg="#f0f0f0")
-        btn_frame.pack(fill=tk.X, pady=15)
+        # Dividir content en dos: archivos (arriba) y texto (abajo)
+        content_frame.grid_rowconfigure(0, weight=1, minsize=60)  # Archivos
+        content_frame.grid_rowconfigure(1, weight=2, minsize=80)  # Texto
+        content_frame.grid_columnconfigure(0, weight=1)
 
-        self.btn_generate = tk.Button(
-            btn_frame, text="GENERAR CORREO", command=self.generate_email,
-            font=("Segoe UI", 12, "bold"), bg="#007aff", fg="white", 
-            height=2, borderwidth=0, cursor="hand2"
-        )
-        self.btn_generate.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-
-        self.btn_copy = ttk.Button(btn_frame, text="Copiar Texto", command=self.copy_to_clipboard)
-        self.btn_copy.pack(side=tk.LEFT, padx=5)
-
-        self.btn_clear = ttk.Button(btn_frame, text="Limpiar Todo", command=self.clear_all)
-        self.btn_clear.pack(side=tk.RIGHT, padx=5)
-
+        # Área de archivos cargados
+        self.files_container = ScrollableFrame(content_frame)
+        self.files_container.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
+        
         # Vista previa del correo
-        self.text_area = ScrolledText(main_frame, wrap=tk.WORD, font=("Arial", 10))
-        self.text_area.pack(fill=tk.BOTH, expand=True)
+        self.text_area = ScrolledText(content_frame, wrap=tk.WORD, font=("Arial", 10))
+        self.text_area.grid(row=1, column=0, sticky="nsew", pady=(5, 0))
         self.text_area.insert(tk.END, "Cargue archivos PDF y genere el correo...")
         self.text_area.config(state=tk.DISABLED)
+
+        # === FOOTER (row=2): Botones SIEMPRE VISIBLES ===
+        footer_frame = tk.Frame(self, bg="#f0f0f0", padx=15, pady=10, height=90)
+        footer_frame.grid(row=2, column=0, sticky="nsew")
+        footer_frame.grid_propagate(False)  # CLAVE: No permite que se encoja
+        
+        # Configurar grid interno del footer
+        footer_frame.grid_rowconfigure(0, weight=1)
+        footer_frame.grid_rowconfigure(1, weight=1)
+        footer_frame.grid_columnconfigure(0, weight=1)
+
+        # Botón principal - ocupa todo el ancho
+        self.btn_generate = tk.Button(
+            footer_frame, text="GENERAR CORREO", command=self.generate_email,
+            font=("Segoe UI", 11, "bold"), bg="#007aff", fg="white", 
+            height=1, borderwidth=0, cursor="hand2"
+        )
+        self.btn_generate.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
+
+        # Frame para botones secundarios
+        secondary_frame = tk.Frame(footer_frame, bg="#f0f0f0")
+        secondary_frame.grid(row=1, column=0, sticky="nsew")
+        secondary_frame.grid_columnconfigure(0, weight=1)
+        secondary_frame.grid_columnconfigure(1, weight=1)
+
+        self.btn_copy = ttk.Button(secondary_frame, text="Copiar Texto", command=self.copy_to_clipboard)
+        self.btn_copy.grid(row=0, column=0, sticky="nsew", padx=(0, 3))
+
+        self.btn_clear = ttk.Button(secondary_frame, text="Limpiar Todo", command=self.clear_all)
+        self.btn_clear.grid(row=0, column=1, sticky="nsew", padx=(3, 0))
+
+        # Vincular evento de redimensionamiento
+        self.bind("<Configure>", self._on_window_resize)
+
+    def _on_window_resize(self, event):
+        """Ajusta elementos dinámicamente según el tamaño de ventana"""
+        # Solo procesar eventos de la ventana principal
+        if event.widget != self:
+            return
+            
+        width = self.winfo_width()
+        
+        # Ajustar texto de botones según ancho disponible
+        if width < 550:
+            self.btn_generate.config(text="GENERAR", font=("Segoe UI", 10, "bold"))
+            self.btn_copy.config(text="Copiar")
+            self.btn_clear.config(text="Limpiar")
+        elif width < 750:
+            self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 10, "bold"))
+            self.btn_copy.config(text="Copiar")
+            self.btn_clear.config(text="Limpiar")
+        else:
+            self.btn_generate.config(text="GENERAR CORREO", font=("Segoe UI", 11, "bold"))
+            self.btn_copy.config(text="Copiar Texto")
+            self.btn_clear.config(text="Limpiar Todo")
+        
+        # Ajustar número de columnas del grid de archivos
+        if width < 500:
+            new_cols = 3
+        elif width < 700:
+            new_cols = 5
+        elif width < 900:
+            new_cols = 7
+        elif width < 1200:
+            new_cols = 9
+        else:
+            new_cols = 11
+            
+        if new_cols != self.grid_columns:
+            self.grid_columns = new_cols
+            if self.pdf_files:
+                self.refresh_grid()
 
     # --- LOGICA VISUAL ---
     def add_file_card(self, file_path):
         if file_path in self.file_widgets: return
         filename = os.path.basename(file_path)
         index = len(self.pdf_files)
-        # Usar 10 columnas para mejor aprovechamiento del espacio horizontal
-        row = index // 10
-        col = index % 10
+        # Usar columnas dinámicas según ancho de ventana
+        row = index // self.grid_columns
+        col = index % self.grid_columns
+        
+        # Configurar la columna para que se expanda
+        self.files_container.scrollable_frame.grid_columnconfigure(col, weight=1, uniform="cards")
+        
         card = tk.Frame(
             self.files_container.scrollable_frame, 
             relief="raised", borderwidth=1, bg="white",
-            width=140, height=130
+            height=115
         )
-        card.grid_propagate(False)
-        card.grid(row=row, column=col, padx=8, pady=8)
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
 
         btn_del = tk.Label(card, text="×", fg="#999", bg="white", font=("Arial", 14), cursor="hand2")
         btn_del.place(relx=0.95, rely=0.0, anchor="ne")
@@ -143,9 +222,9 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         btn_del.bind("<Enter>", lambda e: e.widget.config(fg="red"))
         btn_del.bind("<Leave>", lambda e: e.widget.config(fg="#999"))
 
-        tk.Label(card, text="📄", font=("Arial", 32), bg="white").pack(pady=(15, 5))
-        display_name = filename if len(filename) < 18 else filename[:15] + "..."
-        tk.Label(card, text=display_name, font=("Segoe UI", 9), bg="white", wraplength=130).pack()
+        tk.Label(card, text="📄", font=("Arial", 28), bg="white").pack(pady=(12, 3))
+        display_name = filename if len(filename) < 20 else filename[:17] + "..."
+        tk.Label(card, text=display_name, font=("Segoe UI", 8), bg="white", wraplength=120).pack()
         self.pdf_files.append(file_path)
         self.file_widgets[file_path] = card
         self._update_file_count()
@@ -161,6 +240,9 @@ class NativeInvoiceApp(TkinterDnD.Tk):
 
     def refresh_grid(self):
         current_files = list(self.pdf_files)
+        # Limpiar configuración de columnas anterior
+        for i in range(20):  # Limpiar hasta 20 columnas posibles
+            self.files_container.scrollable_frame.grid_columnconfigure(i, weight=0, uniform="")
         for widget in self.files_container.scrollable_frame.winfo_children():
             widget.destroy()
         self.pdf_files = []
