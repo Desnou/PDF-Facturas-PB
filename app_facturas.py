@@ -409,11 +409,11 @@ class NativeInvoiceApp(TkinterDnD.Tk):
 
                 # Extracción de campos con múltiples estrategias
                 data = {
-                    # Emisor nombre: múltiples patrones
+                    # Emisor nombre: línea después del primer RUT, antes de Giro
                     "emisor_nombre": safe_search([
-                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?SPA)\s*\n",  # Buscar línea 1 que termine en SPA
-                        r"(?:FACTURA\s+ELECTR[OÓ]NICA\s*\n.*?\n)([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?)\s*\n",  # Después de FACTURA ELECTRONICA
-                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?)\s*\n.*?Giro:",  # Línea antes de Giro:
+                        r"R\.U\.T\.?:?\s*[\d\.\-\s]+\n\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s*\n\s*Giro:",  # Patrón principal
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?SPA)\s*\n",  # Fallback: línea que termine en SPA
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?LIMITADA)\s*\n",  # Fallback: línea que termine en LIMITADA
                     ], text, default="EMISOR DESCONOCIDO"),
                     
                     "emisor_rut": emisor_rut,
