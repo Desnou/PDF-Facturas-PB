@@ -503,7 +503,14 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         # Nuevo orden de columnas solicitado:
         # Fecha Emisión, Rut Emisor, Nombre Emisor, N° Factura, Rut Deudor, Nombre Deudor, Valor Bruto Factura
         rows_html = ""
+        total_sum = 0
+        
         for item in self.parsed_data:
+            valor_str = item.get('valor_bruto', item.get('monto','0'))
+            # Extraer valor numérico para sumar (remover separadores de miles y convertir)
+            valor_numerico = int(valor_str.replace('.', '').replace(',', '').replace('$', '').strip()) if valor_str not in ['0', 'S/I', ''] else 0
+            total_sum += valor_numerico
+            
             rows_html += f"""    <tr>
         <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('fecha_emision','S/I')}</td>
         <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('emisor_rut','S/I')}</td>
@@ -511,7 +518,15 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: center;">{item.get('folio','')}</td>
         <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('deudor_rut','S/I')}</td>
         <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt;">{item.get('deudor_nombre','S/I')}</td>
-        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: right;">{item.get('valor_bruto', item.get('monto','0'))}</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: right;">{valor_str}</td>
+    </tr>
+"""
+        
+        # Agregar fila de total
+        total_formatted = f"{total_sum:,}".replace(',', '.')
+        rows_html += f"""    <tr style="background-color: #f0f0f0; font-weight: bold;">
+        <td colspan="6" style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: right;">TOTAL</td>
+        <td style="border: 1px solid #cccccc; padding: 4px 6px; font-size: 10pt; text-align: right;">{total_formatted}</td>
     </tr>
 """
         
@@ -535,7 +550,7 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                 <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: center; color: #ffffff; font-size: 10pt; font-weight: 600;">N° Factura</th>
                 <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Rut Deudor</th>
                 <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: left; color: #ffffff; font-size: 10pt; font-weight: 600;">Nombre Deudor</th>
-                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: right; color: #ffffff; font-size: 10pt; font-weight: 600;">Valor Bruto</th>
+                <th style="border: 1px solid #cccccc; padding: 5px 8px; text-align: right; color: #ffffff; font-size: 10pt; font-weight: 600;">Valor</th>
             </tr>
         </thead>
         <tbody>
