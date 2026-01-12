@@ -729,12 +729,23 @@ class NativeInvoiceApp(TkinterDnD.Tk):
         text += f"  {deudor_full}\n"
         text += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         text += "{:<20} | {:<15} | {:<30} | {:^10} | {:<15} | {:<30} | {:>18}\n".format(
-            'Fecha Emisión', 'Rut Emisor', 'Nombre Emisor', 'N° Factura', 'Rut Deudor', 'Nombre Deudor', 'Valor Bruto Factura'
+            'Fecha Emisión', 'Rut Emisor', 'Nombre Emisor', 'N° Factura', 'Rut Deudor', 'Nombre Deudor', 'Valor'
         )
         text += "{:-<20}-+-{:-<15}-+-{:-<30}-+-{:-<10}-+-{:-<15}-+-{:-<30}-+-{:-<18}\n".format('', '', '', '', '', '', '')
 
+        total_sum = 0
         for item in self.parsed_data:
-            text += f"{item.get('fecha_emision','S/I'):<20} | {item.get('emisor_rut','S/I'):<15} | {item.get('emisor_nombre','S/I'):<30} | {item.get('folio',''):^10} | {item.get('deudor_rut','S/I'):<15} | {item.get('deudor_nombre','S/I'):<30} | {item.get('valor_bruto', item.get('monto','0')):>18}\n"
+            valor_str = item.get('valor_bruto', item.get('monto','0'))
+            # Extraer valor numérico para sumar
+            valor_numerico = int(valor_str.replace('.', '').replace(',', '').replace('$', '').strip()) if valor_str not in ['0', 'S/I', ''] else 0
+            total_sum += valor_numerico
+            
+            text += f"{item.get('fecha_emision','S/I'):<20} | {item.get('emisor_rut','S/I'):<15} | {item.get('emisor_nombre','S/I'):<30} | {item.get('folio',''):^10} | {item.get('deudor_rut','S/I'):<15} | {item.get('deudor_nombre','S/I'):<30} | {valor_str:>18}\n"
+
+        # Agregar fila de total
+        total_formatted = f"{total_sum:,}".replace(',', '.')
+        text += "{:-<20}-+-{:-<15}-+-{:-<30}-+-{:-<10}-+-{:-<15}-+-{:-<30}-+-{:-<18}\n".format('', '', '', '', '', '', '')
+        text += f"{'':>110} TOTAL | {total_formatted:>18}\n"
 
         text += "\n\nFavor ayudarnos con la siguiente información:\n"
         text += "-Si mercaderías y/o productos se encuentran recibidos conformes sin observaciones?\n"
