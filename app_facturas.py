@@ -336,7 +336,11 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                     for pattern in patterns:
                         match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
                         if match:
-                            result = match.group(1).strip() if match.lastindex >= 1 else match.group(0).strip()
+                            # Si hay múltiples grupos de captura, concatenarlos
+                            if match.lastindex and match.lastindex > 1:
+                                result = ' '.join(match.group(i).strip() for i in range(1, match.lastindex + 1))
+                            else:
+                                result = match.group(1).strip() if match.lastindex >= 1 else match.group(0).strip()
                             # Limpiar saltos de línea múltiples
                             result = re.sub(r'\s+', ' ', result)
                             return result
@@ -411,9 +415,18 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                 data = {
                     # Emisor nombre: línea después del primer RUT, antes de Giro
                     "emisor_nombre": safe_search([
-                        r"R\.U\.T\.?:?\s*[\d\.\-\s]+\n\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s*\n\s*Giro:",  # Patrón principal
-                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?SPA)\s*\n",  # Fallback: línea que termine en SPA
-                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?LIMITADA)\s*\n",  # Fallback: línea que termine en LIMITADA
+                        # Patrón 1: Nombre en 2 líneas, la segunda con "E.I.R.L." o similar + "FACTURA ELECTRONICA"
+                        r"R\.U\.T\.?:?\s*[\d\.\-\s]+\n([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s\.\-]+)\n([A-ZÁÉÍÓÚÑ\s\.\-]+?(?:E\.I\.R\.L\.|EIRL|LTDA\.?|S\.A\.)?)\s+FACTURA\s+ELECTR[OÓ]NICA",
+                        # Patrón 2: Nombre en una sola línea + "FACTURA ELECTRONICA" en la misma línea
+                        r"R\.U\.T\.?:?\s*[\d\.\-\s]+\n\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s\.\-]+?(?:E\.I\.R\.L\.|LIMITADA|SPA|LTDA\.?|S\.A\.|EIRL)?)\s+FACTURA\s+ELECTR[OÓ]NICA",
+                        # Patrón 3: Nombre en una sola línea antes de Giro (sin "FACTURA ELECTRONICA")
+                        r"R\.U\.T\.?:?\s*[\d\.\-\s]+\n\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s*\n\s*Giro:",
+                        # Patrón 4: Nombre que termina en SPA
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?SPA)\s*\n",
+                        # Patrón 5: Nombre que termina en LIMITADA  
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?LIMITADA)\s*\n",
+                        # Patrón 6: Nombre que termina en E.I.R.L.
+                        r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?E\.I\.R\.L\.)\s*\n",
                     ], text, default="EMISOR DESCONOCIDO"),
                     
                     "emisor_rut": emisor_rut,
@@ -464,6 +477,17 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                 ], text, default="S/I")
                 
                 data['fecha_emision'] = format_fecha(raw_fecha)
+                
+                # Limpiar emisor_nombre: remover "FACTURA ELECTRONICA" y normalizar espacios
+                if data['emisor_nombre'] and data['emisor_nombre'] != "EMISOR DESCONOCIDO":
+                    # Remover "FACTURA ELECTRONICA" y variantes
+                    cleaned = re.sub(r'\s*FACTURA\s+ELECTR[OÓ]NICA\s*', ' ', data['emisor_nombre'], flags=re.IGNORECASE)
+                    # Reemplazar saltos de línea con espacios
+                    cleaned = cleaned.replace('\n', ' ')
+                    # Normalizar múltiples espacios a uno solo
+                    cleaned = re.sub(r'\s+', ' ', cleaned)
+                    # Remover espacios al inicio y final
+                    data['emisor_nombre'] = cleaned.strip()
                 
                 return data
 
