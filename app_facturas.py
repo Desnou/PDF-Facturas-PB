@@ -310,8 +310,12 @@ class NativeInvoiceApp(TkinterDnD.Tk):
     def extract_pdf_data(self, pdf_path):
         try:
             with pdfplumber.open(pdf_path) as pdf:
-                page = pdf.pages[0]
-                text = page.extract_text()
+                # Leer TODAS las páginas del PDF para facturas multipágina
+                text = ''
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + '\n'
                 
                 # Si no hay texto, intentar OCR o informar error útil
                 if not text or len(text.strip()) < 50:
@@ -433,15 +437,18 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                     
                     # Deudor nombre: múltiples patrones
                     "deudor_nombre": safe_search([
-                        # Patrón 1: Nombre en línea después de SEÑOR(ES): seguido de "Fecha Emision" en la misma línea
+                        # Patrón 1: Nombre en línea ANTES de SEÑOR(ES) + línea después hasta Fecha (FA N° 1826/1828)
+                        # Captura desde después de "DEL GIRO" hasta SEÑOR(ES), luego continúa hasta Fecha
+                        r"(?:DEL GIRO|BOLETA)\s*\n([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s*\n\s*SE[ÑN]OR\(ES\):\s*\n([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s+Fecha\s+Emision",
+                        # Patrón 2: Nombre en línea después de SEÑOR(ES): seguido de "Fecha Emision" en la misma línea
                         r"SE[ÑN]OR\(ES\):\s*\n([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)\s+Fecha\s+Emision",
-                        # Patrón 2: Formato Factura1550: nombre en línea siguiente terminando en SOCIEDAD ANONIMA
+                        # Patrón 3: Formato Factura1550: nombre en línea siguiente terminando en SOCIEDAD ANONIMA
                         r"Señor\(es\):[^\n]*\n([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?SOCIEDAD\s+ANONIMA)",
-                        # Patrón 3: Sin espacio después de () seguido de Dirección o RUT
+                        # Patrón 4: Sin espacio después de () seguido de Dirección o RUT
                         r"Señor\(es\)([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:Direcci[oó]n|RUT\s|R\.U\.T\.?:|\n.*?RUT\s)",
-                        # Patrón 4: Con espacio/dos puntos después de (ES) seguido de RUT o Dirección
+                        # Patrón 5: Con espacio/dos puntos después de (ES) seguido de RUT o Dirección
                         r"SEÑOR\(ES\)[:\s]*([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:\s+R\.U\.T\.?:|Direcci[oó]n:|\n.*?R\.U\.T\.?:)",
-                        # Patrón 5: Con espacio después de (es) seguido de Giro, RUT o Dirección
+                        # Patrón 6: Con espacio después de (es) seguido de Giro, RUT o Dirección
                         r"Señor\(es\)[:\s]+([A-Z][A-ZÁÉÍÓÚÑ\s\.\-]+?)(?:\s+Giro\s*:|R\.U\.T\.?:|Direcci[oó]n:|\n.*?Giro\s*:)",
                     ], text, default="S/I"),
                     
