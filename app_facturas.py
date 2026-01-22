@@ -387,8 +387,9 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                     
                     return raw
 
-                # Extraer todos los RUTs del documento
-                rut_pattern = r"(?:R\.U\.T\.?:?\s*)?(\d{1,3}(?:\.\d{3}){1,2}-\s*[\dkK])"
+                # Extraer todos los RUTs del documento (incluyendo formato con espacios)
+                # Patrón flexible: captura "77.599.749-4" Y "7 6 . 1 8 8 . 1 3 0-2"
+                rut_pattern = r"(?:R\.U\.T\.?:?\s*)?(\d\s*\d?\s*\.?\s*\d\s*\d?\s*\d\s*\.?\s*\d\s*\d?\s*\d\s*-\s*[\dkK])"
                 all_ruts = re.findall(rut_pattern, text, re.IGNORECASE)
                 all_ruts = [norm_rut(r) for r in all_ruts if r]
 
@@ -431,7 +432,7 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                         r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?LIMITADA)\s*\n",
                         # Patrón 6: Nombre que termina en E.I.R.L.
                         r"^([A-ZÁÉÍÓÚÑ][A-Z\sÁÉÍÓÚÑ\.\-]+?E\.I\.R\.L\.)\s*\n",
-                    ], text, default="EMISOR DESCONOCIDO"),
+                    ], text, default="EMISOR DESCONOCIDO").strip(),
                     
                     "emisor_rut": emisor_rut,
                     
@@ -487,6 +488,8 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                     r"Fecha:[^\n]*\n(\d{1,2}/\d{1,2}/\d{4})",  # Fecha en línea siguiente (Factura1550)
                     r"Fecha[:\s]+(\d{1,2}[/-]\d{1,2}[/-]\d{4})",  # Fecha en misma línea
                     r"Fecha[:\s]*(\d{4}-\d{1,2}-\d{1,2})",
+                    # Patrón para formato textual sin etiqueta "Fecha:" (ALL SOLUTION)
+                    r"(\d{1,2}\s+DE\s+[A-Z]+\s+DE\s+\d{4})",
                 ], text, default="S/I")
                 
                 data['fecha_emision'] = format_fecha(raw_fecha)
@@ -501,6 +504,30 @@ class NativeInvoiceApp(TkinterDnD.Tk):
                     cleaned = re.sub(r'\s+', ' ', cleaned)
                     # Remover espacios al inicio y final
                     data['emisor_nombre'] = cleaned.strip()
+                
+                # Limpiar espacios extras del nombre (caso: "M ANTENCION Y SERVICIOS" -> "MANTENCION Y SERVICIOS")
+                def clean_spaced_name(name):
+                    if not name or name == "S/I":
+                        return name
+                    # Conectores/palabras de 1 letra que NO deben unirse
+                    excluded = {'Y', 'E', 'O', 'A', 'U'}
+                    
+                    words = name.split()
+                    result = []
+                    i = 0
+                    while i < len(words):
+                        word = words[i]
+                        # Si es 1 letra, NO es conector, y hay siguiente palabra
+                        if len(word) == 1 and word.upper() not in excluded and i + 1 < len(words):
+                            result.append(word + words[i + 1])
+                            i += 2
+                        else:
+                            result.append(word)
+                            i += 1
+                    return ' '.join(result)
+                
+                data["emisor_nombre"] = clean_spaced_name(data["emisor_nombre"])
+                data["deudor_nombre"] = clean_spaced_name(data["deudor_nombre"])
                 
                 return data
 
